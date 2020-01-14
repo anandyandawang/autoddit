@@ -1,0 +1,53 @@
+@import "./variables.scss";
+@import url("https://fonts.googleapis.com/css?family=Rubik");
+
+#app {
+  font-family: "Rubik", sans-serif;
+}
+
+h1 {
+  @media (max-width: $screen-sm) {
+    font-size: 1.5em;
+  }
+}
+
+.btn {
+  width: 100%;
+  border: $border solid $black;
+  border-radius: 4px;
+
+  font-size: 20px;
+  line-height: 24px;
+
+  &.btn-primary {
+    color: $black;
+    background: $white;
+
+    &:hover {
+      color: $white;
+      background: $primary;
+    }
+
+    &:disabled {
+      color: #adaaaa;
+      background-color: rgba(161, 157, 101, 0.3);
+    }
+
+    &:enabled {
+      &:hover {
+        color: $white;
+        background: $primary;
+      }
+    }
+
+    &.active {
+      color: $black;
+      background-color: $primary;
+    }
+
+    &.any-class-here {
+      color: $black;
+      background-color: $primary;
+    }
+  }
+}
