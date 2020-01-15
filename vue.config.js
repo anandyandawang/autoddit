@@ -19,5 +19,5 @@ module.exports = {
     }
   },
   // UNCOMMENT THIS LINE BEFORE YOU RUN 'npm run build'
-  publicPath: "././"
+  publicPath: "/autoddit/"
 };
