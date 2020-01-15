@@ -1,12 +1,15 @@
 <template>
   <div class="home">
     <b-container fluid class="p-5">
-      <b-row class="m-2" v-for="threadObj in threadObjs" v-bind:key="threadObj.title">
+      <b-row class="m-5" v-for="thread in threadsFilterNonRedditHosts" v-bind:key="thread.title">
         <b-col>
-          <b-row>{{ threadObj.title }}</b-row>
-          <b-row>
-            {{ threadObj.media }}
-            <img class="media" :src="threadObj.media" />
+          <b-row>{{ thread.title }}</b-row>
+          <b-row>{{ thread.selftext }}</b-row>
+          <b-row v-if="isUrlImg(thread.url)">
+            <img class="media" :src="thread.url" />
+          </b-row>
+          <b-row v-if="thread.vid">
+            <iframe class="media" allow="autoplay" :src="thread.vid" />
           </b-row>
         </b-col>
       </b-row>
@@ -16,56 +19,83 @@
 
 <style lang="scss">
 .media {
-  max-height: 40vh;
+  height: 60vh;
+  width: auto;
 }
 </style>
 
 <script lang="ts">
-import Vue from "vue";
-import HelloWorld from "@/components/HelloWorld.vue";
-var json = require("@/static/content.json");
-// @ is an alias to /src
+import Vue from 'vue'
 
 export default Vue.extend({
-  name: "home",
-  components: {
-    HelloWorld
-  },
-  data() {
+  name: 'home',
+  data () {
     return {
-      threadObjs: Array()
-    };
+      threads: [] as Thread[]
+    }
   },
-  created() {
-    let vm = this;
-    vm.getPostsAndComments("all", "hot");
+  computed: {
+    // If the thread contains an image or video, filters threads to only contain those that are reddit-hosted
+    threadsFilterNonRedditHosts (): Array<Thread> {
+      let threadsFiltered = this.threads.filter(thread => {
+        return (
+          this.isUrlComments(thread.url) ||
+          this.isUrlImg(thread.url) ||
+          thread.vid
+        )
+      })
+      return threadsFiltered
+    }
+  },
+  created () {
+    let vm = this
+    vm.getPostsAndComments('aww', 'hot')
   },
   methods: {
-    async getPostsAndComments(subredditName: string, sortBy: string) {
+    async getPostsAndComments (subredditName: string, sortBy: string) {
       const response = await fetch(
-        "https://www.reddit.com/r/" + subredditName + "/" + sortBy + ".json"
-      );
-      const responseJson = await response.json();
+        'https://www.reddit.com/r/' + subredditName + '/' + sortBy + '.json'
+      )
+      const responseJson = await response.json()
 
-      const threads = responseJson.data.children;
-      let threadObjs = Array();
-      threads.forEach(async function(thread: any) {
+      const threadsJson = responseJson.data.children as Array<any>
+      let threads: Thread[] = []
+      threadsJson.forEach(async function (threadJson) {
         let link =
-          "https://www.reddit.com" + thread.data.permalink + ".json?limit=3";
-        console.log(link);
-        const response = await fetch(link);
-        const responseJson = await response.json();
+          'https://www.reddit.com' +
+          threadJson.data.permalink +
+          '.json?limit=3'
+        const response = await fetch(link)
+        const responseJson = await response.json()
 
-        let threadObj = {
+        let thread: Thread = {
           title: responseJson[0].data.children[0].data.title,
-          media: responseJson[0].data.children[0].data.url
-        };
+          selftext: responseJson[0].data.children[0].data.selftext,
+          url: responseJson[0].data.children[0].data.url,
+          vid: responseJson[0].data.children[0].data.media
+            ? responseJson[0].data.children[0].data.media.reddit_video
+              .fallback_url
+            : ''
+        }
 
-        threadObjs.push(threadObj);
-      });
+        threads.push(thread)
+      })
 
-      this.threadObjs = threadObjs;
+      this.threads = threads
+    },
+    isUrlImg (url: string) {
+      return url.match(/\.(jpeg|jpg|gif|png)$/) != null
+    },
+    isUrlComments (url: string) {
+      return url.match(/www.reddit.com/) != null
     }
   }
-});
+})
+
+interface Thread {
+  title: string;
+  selftext: string;
+  url: string;
+  vid: string;
+}
 </script>
