@@ -25,72 +25,74 @@
 </style>
 
 <script lang="ts">
-import Vue from 'vue'
+import Vue from "vue";
 
 export default Vue.extend({
-  name: 'home',
-  data () {
+  name: "home",
+  data() {
     return {
       threads: [] as Thread[]
-    }
+    };
   },
   computed: {
     // If the thread contains an image or video, filters threads to only contain those that are reddit-hosted
-    threadsFilterNonRedditHosts (): Array<Thread> {
+    threadsFilterNonRedditHosts(): Array<Thread> {
       let threadsFiltered = this.threads.filter(thread => {
         return (
           this.isUrlComments(thread.url) ||
           this.isUrlImg(thread.url) ||
           thread.vid
-        )
-      })
-      return threadsFiltered
+        );
+      });
+      return threadsFiltered;
     }
   },
-  created () {
-    let vm = this
-    vm.getPostsAndComments('aww', 'hot')
+  created() {
+    let vm = this;
+    vm.getPostsAndComments("aww", "hot");
   },
   methods: {
-    async getPostsAndComments (subredditName: string, sortBy: string) {
+    async getPostsAndComments(subredditName: string, sortBy: string) {
       const response = await fetch(
-        'https://www.reddit.com/r/' + subredditName + '/' + sortBy + '.json'
-      )
-      const responseJson = await response.json()
+        "https://www.reddit.com/r/" + subredditName + "/" + sortBy + ".json"
+      );
+      const responseJson = await response.json();
 
-      const threadsJson = responseJson.data.children as Array<any>
-      let threads: Thread[] = []
-      threadsJson.forEach(async function (threadJson) {
+      const threadsJson = responseJson.data.children as Array<any>;
+      let threads: Thread[] = [];
+      threadsJson.forEach(async function(threadJson) {
         let link =
-          'https://www.reddit.com' +
+          "https://www.reddit.com" +
           threadJson.data.permalink +
-          '.json?limit=3'
-        const response = await fetch(link)
-        const responseJson = await response.json()
+          ".json?limit=3";
+        const response = await fetch(link);
+        const responseJson = await response.json();
+
+        const threadData = responseJson[0].data.children[0].data;
 
         let thread: Thread = {
-          title: responseJson[0].data.children[0].data.title,
-          selftext: responseJson[0].data.children[0].data.selftext,
-          url: responseJson[0].data.children[0].data.url,
-          vid: responseJson[0].data.children[0].data.media
-            ? responseJson[0].data.children[0].data.media.reddit_video
-              .fallback_url
-            : ''
-        }
+          title: threadData.title,
+          selftext: threadData.selftext,
+          url: threadData.url,
+          vid:
+            threadData.media && threadData.media.reddit_video
+              ? threadData.media.reddit_video.fallback_url
+              : ""
+        };
 
-        threads.push(thread)
-      })
+        threads.push(thread);
+      });
 
-      this.threads = threads
+      this.threads = threads;
     },
-    isUrlImg (url: string) {
-      return url.match(/\.(jpeg|jpg|gif|png)$/) != null
+    isUrlImg(url: string) {
+      return url.match(/\.(jpeg|jpg|gif|png)$/) != null;
     },
-    isUrlComments (url: string) {
-      return url.match(/www.reddit.com/) != null
+    isUrlComments(url: string) {
+      return url.match(/www.reddit.com/) != null;
     }
   }
-})
+});
 
 interface Thread {
   title: string;
