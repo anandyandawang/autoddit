@@ -16,21 +16,21 @@
 </style>
 
 <script lang="ts">
-import Vue from "vue";
-var json = require("@/static/content.json");
+import Vue from 'vue'
+var json = require('@/static/content.json')
 // @ is an alias to /src
 
 export default Vue.extend({
-  name: "home",
+  name: 'home',
   components: {},
-  data() {
+  data () {
     return {
       json: {}
-    };
+    }
   },
-  mounted() {
-    this.json = json;
-    console.log(json);
+  mounted () {
+    this.json = json
+    console.log(json)
   }
-});
+})
 </script>
