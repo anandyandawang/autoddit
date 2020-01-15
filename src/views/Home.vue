@@ -1,7 +1,11 @@
 <template>
   <div class="home">
     <b-container fluid class="p-5">
-      <b-row class="m-5" v-for="thread in threadsFilterNonRedditHosts" v-bind:key="thread.title">
+      <b-row
+        class="m-5"
+        v-for="thread in threadsFilterNonRedditHosts"
+        v-bind:key="thread.title"
+      >
         <b-col>
           <b-row>{{ thread.title }}</b-row>
           <b-row>{{ thread.selftext }}</b-row>
