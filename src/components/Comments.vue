@@ -49,7 +49,7 @@ export default Vue.extend({
   },
   computed: {
     style() {
-      let offset = this.depth * 5;
+      let offset = Number(this.depth) * 5;
       return "padding-left: " + offset + "vw";
     }
   }
