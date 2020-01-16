@@ -2,7 +2,7 @@
   <div class="comments">
     <b-row>
       <b-col>
-        <!-- TODO:: update v-for's to use ACTUAL key ids, i.e. thread / comment link ids -->
+        <!-- TODO:: update v-for's to use ACTUAL key ids, i.e. thread / comment link ids. need to pull from reddit json and update the interface to do so -->
         <b-row
           class="mb-2"
           v-for="comment in comments"
