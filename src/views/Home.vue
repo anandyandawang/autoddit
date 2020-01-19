@@ -7,9 +7,8 @@
         </button>
       </b-row>
       <b-row>
-        <!-- TODO:: make post component? isUrlImg could be used in the process of grabbing reddit api info, then create an img field if it is (similar to) -->
+        <!-- TODO:: make post component? instead of calling here / in Post copmonent, isUrlImg could be used in the process of grabbing reddit api info, then create an img field if it is (similar to) -->
         <b-col v-if="doneLoading">
-          ------{{ threadsFiltered[currThread].comments }}
           <b-row>{{ threadsFiltered[currThread].title }}</b-row>
           <b-row>{{ threadsFiltered[currThread].selftext }}</b-row>
           <b-row v-if="isUrlImg(threadsFiltered[currThread].url)">
@@ -59,7 +58,8 @@ export default Vue.extend({
       threads: [] as Thread[],
       currThread: 0 as number,
       enableTTS: false,
-      doneLoading: false
+      doneLoading: false,
+      intervalId: -1 as number
     };
   },
   computed: {
@@ -78,6 +78,9 @@ export default Vue.extend({
   created() {
     let vm = this;
     vm.getPostsAndComments("aww", "hot");
+
+    // enable the setInterval
+    vm.intervalId = vm.incrementCurrThreadInterval();
   },
   methods: {
     async getPostsAndComments(subredditName: string, sortBy: string) {
@@ -93,7 +96,7 @@ export default Vue.extend({
         let link =
           "https://www.reddit.com" +
           threadJson.data.permalink +
-          ".json?limit=5";
+          ".json?limit=3";
         const response = await fetch(link);
         const responseJson = await response.json();
 
@@ -132,7 +135,10 @@ export default Vue.extend({
           comments: comments
         };
         vm.threads.push(thread);
-        vm.doneLoading = true;
+        if (threadJson === threadsJson[threadsJson.length - 1]) {
+          // done loading if we are on the last iteration ofo the olop and added the last thread
+          vm.doneLoading = true;
+        }
       });
     },
     isUrlImg(url: string) {
@@ -142,11 +148,19 @@ export default Vue.extend({
       return url.match(/www.reddit.com/) != null;
     },
     toggleTTS() {
+      // everytime we toggle TTS, we want to enable/disable TTS and do the opposite for thte intervals
       this.enableTTS = !this.enableTTS;
-      this.doTTS();
+      this.enableTTS ? this.doTTS() : this.doInterval();
     },
     doTTS(): void {
-      if (this.enableTTS) {
+      let vm = this;
+
+      if (vm.enableTTS) {
+        // they toggled tts on; time to speak the text
+
+        // also cancel the setInterval
+        clearInterval(vm.intervalId);
+
         let speechString =
           this.threadsFiltered[this.currThread].title +
           ". " +
@@ -154,8 +168,39 @@ export default Vue.extend({
             this.threadsFiltered[this.currThread].comments
           );
 
-        speechSynthesis.speak(new SpeechSynthesisUtterance(speechString));
+        // if TTS is enabled then on every completion of reading a thread,
+        // increment the currThread counter, and start reading the next thread
+        let utter = new SpeechSynthesisUtterance(speechString);
+        utter.addEventListener("end", function(event) {
+          // extra check needed here because it is possible to fire this listener when enableTTS is false
+          // happens when speechSynthesis.cancel() is called
+          // which happens when we toggle off TTS to use interval instead,
+          // and we don't want to increase the currThread just yet when that toggle occurs
+          if (vm.enableTTS) {
+            vm.currThread++;
+            vm.doTTS();
+          }
+        });
+        speechSynthesis.speak(utter);
       }
+    },
+    doInterval(): void {
+      let vm = this;
+
+      if (!vm.enableTTS) {
+        // they toggled tts off; time to stop speech
+        // NOTE:: this cancel function causes the Utterance's end event listener to fire off
+        speechSynthesis.cancel();
+
+        // also re-enable the setInterval
+        vm.intervalId = vm.incrementCurrThreadInterval();
+      }
+    },
+    incrementCurrThreadInterval() {
+      let vm = this;
+      return setInterval(function() {
+        vm.currThread++;
+      }, 5000);
     },
     commentsSpeechify(comments: Array<Comment>) {
       let vm = this;
@@ -166,8 +211,7 @@ export default Vue.extend({
           comment.body + ". " + vm.commentsSpeechify(comment.replies);
       });
       return commentsString;
-    },
-    incrementCurrThread() {}
+    }
   }
 });
 
