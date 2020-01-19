@@ -1,22 +1,31 @@
 <template>
   <div class="home">
     <b-container fluid class="p-5">
-      <!-- TODO:: update v-for's to use ACTUAL key ids, i.e. thread / comment link ids. need to pull from reddit json and update the interface to do so -->
-      <b-row
-        class="m-5"
-        v-for="thread in threadsFilterNonRedditHosts"
-        v-bind:key="thread.title"
-      >
-        <b-col>
-          <b-row>{{ thread.title }}</b-row>
-          <b-row>{{ thread.selftext }}</b-row>
-          <b-row v-if="isUrlImg(thread.url)">
-            <img class="media" :src="thread.url" />
+      <b-row>
+        <button @click="toggleTTS">
+          Enable text-to-speech: {{ enableTTS }}
+        </button>
+      </b-row>
+      <b-row>
+        <!-- TODO:: make post component? isUrlImg could be used in the process of grabbing reddit api info, then create an img field if it is (similar to) -->
+        <b-col v-if="doneLoading">
+          ------{{ threadsFiltered[currThread].comments }}
+          <b-row>{{ threadsFiltered[currThread].title }}</b-row>
+          <b-row>{{ threadsFiltered[currThread].selftext }}</b-row>
+          <b-row v-if="isUrlImg(threadsFiltered[currThread].url)">
+            <img class="media" :src="threadsFiltered[currThread].url" />
           </b-row>
-          <b-row v-if="thread.vid">
-            <iframe class="media" allow="autoplay" :src="thread.vid" />
+          <b-row v-if="threadsFiltered[currThread].vid">
+            <iframe
+              class="media"
+              allow="autoplay"
+              :src="threadsFiltered[currThread].vid"
+            />
           </b-row>
-          <comments :comments="thread.comments"></comments>
+          <comments :comments="threadsFiltered[currThread].comments"></comments>
+        </b-col>
+        <b-col v-if="!doneLoading">
+          <b-row><loading></loading></b-row>
         </b-col>
       </b-row>
     </b-container>
@@ -37,20 +46,25 @@
 <script lang="ts">
 import Vue from "vue";
 import Comments from "../components/Comments.vue";
+import Loading from "../components/Loading.vue";
 
 export default Vue.extend({
   name: "home",
   components: {
-    Comments
+    Comments,
+    Loading
   },
   data() {
     return {
-      threads: [] as Thread[]
+      threads: [] as Thread[],
+      currThread: 0 as number,
+      enableTTS: false,
+      doneLoading: false
     };
   },
   computed: {
-    // If the thread contains an image or video, filters threads to only contain those that are reddit-hosted
-    threadsFilterNonRedditHosts(): Array<Thread> {
+    // Filters threads to only contain images and videos that are reddit-hosted
+    threadsFiltered(): Array<Thread> {
       let threadsFiltered = this.threads.filter(thread => {
         return (
           this.isUrlComments(thread.url) ||
@@ -67,13 +81,14 @@ export default Vue.extend({
   },
   methods: {
     async getPostsAndComments(subredditName: string, sortBy: string) {
+      let vm = this;
+
       const response = await fetch(
         "https://www.reddit.com/r/" + subredditName + "/" + sortBy + ".json"
       );
       const responseJson = await response.json();
 
       const threadsJson = responseJson.data.children as Array<any>;
-      let threads: Thread[] = [];
       threadsJson.forEach(async function(threadJson) {
         let link =
           "https://www.reddit.com" +
@@ -90,13 +105,15 @@ export default Vue.extend({
         ): Array<Comment> {
           let comments: Array<Comment> = [];
           commentsData.forEach(commentData => {
-            let comment = {
-              body: commentData.data.body,
-              replies: commentData.data.replies
-                ? setCommentsArray(commentData.data.replies.data.children)
-                : []
-            };
-            comments.push(comment);
+            if (commentData.data.body) {
+              let comment = {
+                body: commentData.data.body,
+                replies: commentData.data.replies
+                  ? setCommentsArray(commentData.data.replies.data.children)
+                  : []
+              };
+              comments.push(comment);
+            }
           });
           return comments;
         };
@@ -114,16 +131,43 @@ export default Vue.extend({
               : "",
           comments: comments
         };
-        threads.push(thread);
+        vm.threads.push(thread);
+        vm.doneLoading = true;
       });
-      this.threads = threads;
     },
     isUrlImg(url: string) {
       return url.match(/\.(jpeg|jpg|gif|png)$/) != null;
     },
     isUrlComments(url: string) {
       return url.match(/www.reddit.com/) != null;
-    }
+    },
+    toggleTTS() {
+      this.enableTTS = !this.enableTTS;
+      this.doTTS();
+    },
+    doTTS(): void {
+      if (this.enableTTS) {
+        let speechString =
+          this.threadsFiltered[this.currThread].title +
+          ". " +
+          this.commentsSpeechify(
+            this.threadsFiltered[this.currThread].comments
+          );
+
+        speechSynthesis.speak(new SpeechSynthesisUtterance(speechString));
+      }
+    },
+    commentsSpeechify(comments: Array<Comment>) {
+      let vm = this;
+
+      let commentsString = "";
+      comments.forEach(function(comment) {
+        commentsString +=
+          comment.body + ". " + vm.commentsSpeechify(comment.replies);
+      });
+      return commentsString;
+    },
+    incrementCurrThread() {}
   }
 });
 
