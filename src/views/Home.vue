@@ -78,9 +78,6 @@ export default Vue.extend({
   created() {
     let vm = this;
     vm.getPostsAndComments("aww", "hot");
-
-    // enable the setInterval
-    vm.intervalId = vm.incrementCurrThreadInterval();
   },
   methods: {
     async getPostsAndComments(subredditName: string, sortBy: string) {
@@ -132,12 +129,21 @@ export default Vue.extend({
             threadData.media && threadData.media.reddit_video
               ? threadData.media.reddit_video.fallback_url
               : "",
+          duration:
+            threadData.media && threadData.media.reddit_video
+              ? threadData.media.reddit_video.duration * 1000
+              : 0,
           comments: comments
         };
         vm.threads.push(thread);
         if (threadJson === threadsJson[threadsJson.length - 1]) {
-          // done loading if we are on the last iteration ofo the olop and added the last thread
+          // done loading if we are on the last iteration of the loop and added the last thread
           vm.doneLoading = true;
+
+          // enable the setInterval
+          if (!vm.enableTTS) {
+            vm.intervalId = vm.incrementCurrThreadInterval();
+          }
         }
       });
     },
@@ -161,24 +167,43 @@ export default Vue.extend({
         // also cancel the setInterval
         clearInterval(vm.intervalId);
 
-        let speechString =
-          this.threadsFiltered[this.currThread].title +
-          ". " +
-          this.commentsSpeechify(
-            this.threadsFiltered[this.currThread].comments
-          );
-
-        // if TTS is enabled then on every completion of reading a thread,
-        // increment the currThread counter, and start reading the next thread
-        let utter = new SpeechSynthesisUtterance(speechString);
+        // first speak the title
+        let titleSpeechString = vm.threadsFiltered[vm.currThread].title;
+        let utter = new SpeechSynthesisUtterance(titleSpeechString);
         utter.addEventListener("end", function(event) {
           // extra check needed here because it is possible to fire this listener when enableTTS is false
           // happens when speechSynthesis.cancel() is called
           // which happens when we toggle off TTS to use interval instead,
-          // and we don't want to increase the currThread just yet when that toggle occurs
           if (vm.enableTTS) {
-            vm.currThread++;
-            vm.doTTS();
+            // then add a delay if there is an image or video
+            let delay = 0;
+            if (vm.threadsFiltered[vm.currThread].vid) {
+              delay = vm.threadsFiltered[vm.currThread].duration;
+            } else if (vm.isUrlImg(vm.threadsFiltered[vm.currThread].url)) {
+              delay = 3000;
+            }
+
+            // after the delay, speak the comments
+            setTimeout(function() {
+              let commentsSpeechString = vm.commentsSpeechify(
+                vm.threadsFiltered[vm.currThread].comments
+              );
+
+              // if TTS is enabled then on every completion of reading a thread,
+              // increment the currThread counter, and start reading the next thread
+              let utter = new SpeechSynthesisUtterance(commentsSpeechString);
+              utter.addEventListener("end", function(event) {
+                // extra check needed here because it is possible to fire this listener when enableTTS is false
+                // happens when speechSynthesis.cancel() is called
+                // which happens when we toggle off TTS to use interval instead,
+                // and we don't want to increase the currThread just yet when that toggle occurs
+                if (vm.enableTTS) {
+                  vm.currThread++;
+                  vm.doTTS();
+                }
+              });
+              speechSynthesis.speak(utter);
+            }, delay);
           }
         });
         speechSynthesis.speak(utter);
@@ -198,9 +223,22 @@ export default Vue.extend({
     },
     incrementCurrThreadInterval() {
       let vm = this;
+
+      // giving extra delay time if there is an image or a video
+      let delay = 5000;
+      if (vm.threadsFiltered[vm.currThread].vid) {
+        delay += vm.threadsFiltered[vm.currThread].duration;
+      } else if (vm.isUrlImg(vm.threadsFiltered[vm.currThread].url)) {
+        delay += 3000;
+      }
+
       return setInterval(function() {
         vm.currThread++;
-      }, 5000);
+
+        // clear the current interval, set a new interval with a delay customzied for the next thread
+        clearInterval(vm.intervalId);
+        vm.intervalId = vm.incrementCurrThreadInterval();
+      }, delay);
     },
     commentsSpeechify(comments: Array<Comment>) {
       let vm = this;
@@ -220,6 +258,7 @@ interface Thread {
   selftext: string;
   url: string;
   vid: string;
+  duration: number;
   comments: Array<Comment>;
 }
 
