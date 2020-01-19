@@ -11,7 +11,7 @@
         <b-col v-if="doneLoading">
           <b-row>{{ threadsFiltered[currThread].title }}</b-row>
           <b-row>{{ threadsFiltered[currThread].selftext }}</b-row>
-          <b-row v-if="isUrlImg(threadsFiltered[currThread].url)">
+          <b-row v-if="threadsFiltered[currThread].img">
             <img class="media" :src="threadsFiltered[currThread].url" />
           </b-row>
           <b-row v-if="threadsFiltered[currThread].vid">
@@ -66,18 +66,14 @@ export default Vue.extend({
     // Filters threads to only contain images and videos that are reddit-hosted
     threadsFiltered(): Array<Thread> {
       let threadsFiltered = this.threads.filter(thread => {
-        return (
-          this.isUrlComments(thread.url) ||
-          this.isUrlImg(thread.url) ||
-          thread.vid
-        );
+        return this.isUrlComments(thread.url) || thread.img || thread.vid;
       });
       return threadsFiltered;
     }
   },
   created() {
     let vm = this;
-    vm.getPostsAndComments("uwaterloo", "hot");
+    vm.getPostsAndComments("aww", "hot");
   },
   methods: {
     async getPostsAndComments(subredditName: string, sortBy: string) {
@@ -125,6 +121,7 @@ export default Vue.extend({
           title: threadData.title,
           selftext: threadData.selftext,
           url: threadData.url,
+          img: vm.isUrlImg(threadData.url) ? threadData.url : "",
           vid:
             threadData.media && threadData.media.reddit_video
               ? threadData.media.reddit_video.fallback_url
@@ -182,7 +179,7 @@ export default Vue.extend({
             let delay = 0;
             if (vm.threadsFiltered[vm.currThread].vid) {
               delay = vm.threadsFiltered[vm.currThread].duration;
-            } else if (vm.isUrlImg(vm.threadsFiltered[vm.currThread].url)) {
+            } else if (vm.threadsFiltered[vm.currThread].img) {
               delay = 3000;
             }
 
@@ -231,7 +228,7 @@ export default Vue.extend({
       let delay = 5000;
       if (vm.threadsFiltered[vm.currThread].vid) {
         delay += vm.threadsFiltered[vm.currThread].duration;
-      } else if (vm.isUrlImg(vm.threadsFiltered[vm.currThread].url)) {
+      } else if (vm.threadsFiltered[vm.currThread].img) {
         delay += 3000;
       }
 
@@ -260,6 +257,7 @@ interface Thread {
   title: string;
   selftext: string;
   url: string;
+  img: string;
   vid: string;
   duration: number;
   comments: Array<Comment>;
