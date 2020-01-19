@@ -77,7 +77,7 @@ export default Vue.extend({
   },
   created() {
     let vm = this;
-    vm.getPostsAndComments("aww", "hot");
+    vm.getPostsAndComments("uwaterloo", "hot");
   },
   methods: {
     async getPostsAndComments(subredditName: string, sortBy: string) {
@@ -168,8 +168,11 @@ export default Vue.extend({
         clearInterval(vm.intervalId);
 
         // first speak the title
-        let titleSpeechString = vm.threadsFiltered[vm.currThread].title;
-        let utter = new SpeechSynthesisUtterance(titleSpeechString);
+        let postSpeechString = vm.threadsFiltered[vm.currThread].title + ". ";
+        if (vm.threadsFiltered[vm.currThread].selftext) {
+          postSpeechString += vm.threadsFiltered[vm.currThread].selftext + ". ";
+        }
+        let utter = new SpeechSynthesisUtterance(postSpeechString);
         utter.addEventListener("end", function(event) {
           // extra check needed here because it is possible to fire this listener when enableTTS is false
           // happens when speechSynthesis.cancel() is called
