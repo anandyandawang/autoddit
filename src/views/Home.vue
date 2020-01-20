@@ -67,6 +67,7 @@
       font-size: 14px;
     }
   }
+
   .media {
     object-fit: cover; // automatically crops image to keep the aspect ratio if image does not fit within the range of dimensions
     min-width: 75%;

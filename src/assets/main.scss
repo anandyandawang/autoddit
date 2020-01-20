@@ -1,8 +1,18 @@
 @import "./variables.scss";
-@import url("https://fonts.googleapis.com/css?family=Rubik");
+@import url("https://fonts.googleapis.com/css?family=Nunito+Sans");
+@import url("https://fonts.googleapis.com/css?family=Open+Sans");
 
 #app {
-  font-family: "Rubik", sans-serif;
+  font-family: "Open Sans", sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Nunito Sans", sans-serif;
 }
 
 h1 {
