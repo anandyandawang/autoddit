@@ -1,34 +1,47 @@
 <template>
   <div class="home">
-    <b-container fluid class="p-5">
+    <b-container fluid class="m-4">
       <b-row>
-        <button @click="toggleTTS">
-          Enable text-to-speech: {{ enableTTS }}
-        </button>
-      </b-row>
-      <b-row>
-        <transition name="slide-fade" mode="out-in">
-          <!-- TODO:: make post component? instead of calling here / in Post copmonent, isUrlImg could be used in the process of grabbing reddit api info, then create an img field if it is (similar to) -->
-          <b-col v-if="doneLoading" :key="currThread">
-            <b-row>{{ threadsFiltered[currThread].title }}</b-row>
-            <b-row>{{ threadsFiltered[currThread].selftext }}</b-row>
-            <b-row v-if="threadsFiltered[currThread].img">
-              <img class="media" :src="threadsFiltered[currThread].url" />
-            </b-row>
-            <b-row v-if="threadsFiltered[currThread].vid">
-              <iframe
-                class="media"
-                allow="autoplay"
-                :src="threadsFiltered[currThread].vid"
-              />
-            </b-row>
-            <comments
-              :comments="threadsFiltered[currThread].comments"
-            ></comments>
-          </b-col>
-        </transition>
-        <b-col v-if="!doneLoading">
-          <b-row><loading></loading></b-row>
+        <b-col md="6" offset-md="3">
+          <b-row>
+            <transition name="slide-fade" mode="out-in">
+              <!-- TODO:: make post component? instead of calling here / in Post copmonent, isUrlImg could be used in the process of grabbing reddit api info, then create an img field if it is (similar to) -->
+              <b-col v-if="doneLoading" :key="currThread">
+                <b-row
+                  ><h5 class="title">
+                    {{ threadsFiltered[currThread].title }}
+                  </h5></b-row
+                >
+                <b-row
+                  class="post-body"
+                  v-if="threadsFiltered[currThread].selftext"
+                  >{{ threadsFiltered[currThread].selftext }}</b-row
+                >
+                <b-row class="post-body" v-if="threadsFiltered[currThread].img">
+                  <img class="media" :src="threadsFiltered[currThread].url" />
+                </b-row>
+                <b-row class="post-body" v-if="threadsFiltered[currThread].vid">
+                  <iframe
+                    class="media"
+                    allow="autoplay"
+                    :src="threadsFiltered[currThread].vid"
+                  />
+                </b-row>
+                <comments
+                  class="comments"
+                  :comments="threadsFiltered[currThread].comments"
+                ></comments>
+              </b-col>
+            </transition>
+            <b-col v-if="!doneLoading">
+              <b-row><loading></loading></b-row>
+            </b-col>
+          </b-row>
+          <b-row>
+            <button class="btn" @click="toggleTTS">
+              Enable text-to-speech: {{ enableTTS }}
+            </button>
+          </b-row>
         </b-col>
       </b-row>
     </b-container>
@@ -36,12 +49,40 @@
 </template>
 
 <style lang="scss">
+@import "../assets/variables.scss";
 .home {
   text-align: left;
+  display: flex;
+  align-items: center;
 
+  .title {
+    @media (max-width: $screen-sm) {
+      font-size: 18px;
+    }
+  }
+
+  .post-body,
+  .comments {
+    @media (max-width: $screen-sm) {
+      font-size: 14px;
+    }
+  }
   .media {
-    height: 60vh;
-    width: auto;
+    object-fit: cover; // automatically crops image to keep the aspect ratio if image does not fit within the range of dimensions
+    min-width: 75%;
+    max-width: 100%;
+    min-height: 60vh;
+    max-height: 70vh;
+
+    @media (max-width: $screen-sm) {
+      // higher min width on mobile to fill up screen width
+      min-width: 90%;
+    }
+  }
+
+  .post-body {
+    margin-top: 1%;
+    margin-bottom: 3%;
   }
 
   .slide-fade-enter-active {

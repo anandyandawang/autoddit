@@ -4,7 +4,7 @@
       <b-col>
         <!-- TODO:: update v-for's to use ACTUAL key ids, i.e. thread / comment link ids. need to pull from reddit json and update the interface to do so -->
         <b-row
-          class="mb-2"
+          class="mb-1"
           v-for="comment in comments"
           v-bind:key="comment.body"
         >
