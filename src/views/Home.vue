@@ -281,8 +281,11 @@ export default Vue.extend({
                 // which happens when we toggle off TTS to use interval instead,
                 // and we don't want to increase the currThread just yet when that toggle occurs
                 if (vm.enableTTS) {
-                  vm.currThread++;
-                  vm.doTTS();
+                  // add slight delay between reading last comment and next title
+                  setTimeout(function() {
+                    vm.currThread++;
+                    vm.doTTS();
+                  }, 2000);
                 }
               });
               speechSynthesis.speak(utter);
