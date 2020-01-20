@@ -7,22 +7,26 @@
         </button>
       </b-row>
       <b-row>
-        <!-- TODO:: make post component? instead of calling here / in Post copmonent, isUrlImg could be used in the process of grabbing reddit api info, then create an img field if it is (similar to) -->
-        <b-col v-if="doneLoading">
-          <b-row>{{ threadsFiltered[currThread].title }}</b-row>
-          <b-row>{{ threadsFiltered[currThread].selftext }}</b-row>
-          <b-row v-if="threadsFiltered[currThread].img">
-            <img class="media" :src="threadsFiltered[currThread].url" />
-          </b-row>
-          <b-row v-if="threadsFiltered[currThread].vid">
-            <iframe
-              class="media"
-              allow="autoplay"
-              :src="threadsFiltered[currThread].vid"
-            />
-          </b-row>
-          <comments :comments="threadsFiltered[currThread].comments"></comments>
-        </b-col>
+        <transition name="slide-fade" mode="out-in">
+          <!-- TODO:: make post component? instead of calling here / in Post copmonent, isUrlImg could be used in the process of grabbing reddit api info, then create an img field if it is (similar to) -->
+          <b-col v-if="doneLoading" :key="currThread">
+            <b-row>{{ threadsFiltered[currThread].title }}</b-row>
+            <b-row>{{ threadsFiltered[currThread].selftext }}</b-row>
+            <b-row v-if="threadsFiltered[currThread].img">
+              <img class="media" :src="threadsFiltered[currThread].url" />
+            </b-row>
+            <b-row v-if="threadsFiltered[currThread].vid">
+              <iframe
+                class="media"
+                allow="autoplay"
+                :src="threadsFiltered[currThread].vid"
+              />
+            </b-row>
+            <comments
+              :comments="threadsFiltered[currThread].comments"
+            ></comments>
+          </b-col>
+        </transition>
         <b-col v-if="!doneLoading">
           <b-row><loading></loading></b-row>
         </b-col>
@@ -38,6 +42,24 @@
   .media {
     height: 60vh;
     width: auto;
+  }
+
+  .slide-fade-enter-active {
+    transition: all 0.4s ease;
+  }
+
+  .slide-fade-leave-active {
+    transition: all 0.4s cubic-bezier(1, 0.5, 0.8, 1);
+  }
+
+  .slide-fade-enter {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+
+  .slide-fade-leave-to {
+    transform: translateX(30px);
+    opacity: 0;
   }
 }
 </style>
