@@ -38,13 +38,25 @@
             </b-col>
           </b-row>
         </b-col>
+        <!-- TODO:: settings component -->
         <transition name="slide-fade" mode="out-in">
-          <b-col class="settings" offset-md="1" md="2" v-if="doneLoading">
-            <b-row>
-              <b-checkbox v-model="enableTTS">
-                Text-to-speech
-              </b-checkbox>
-            </b-row>
+          <b-col offset-md="1" md="2" v-if="doneLoadingFirst">
+            <b-form-group class="settings">
+              <b-row class="mb-1">
+                <b-form-input
+                  placeholder="Enter subreddit here"
+                  type="text"
+                  size="sm"
+                  v-model="subreddit"
+                  v-on:input="subredditApply"
+                ></b-form-input>
+              </b-row>
+              <b-row>
+                <b-checkbox v-model="enableTTS">
+                  Text-to-speech
+                </b-checkbox>
+              </b-row>
+            </b-form-group>
           </b-col>
         </transition>
       </b-row>
@@ -110,13 +122,10 @@
   }
 
   .settings {
-    display: flex;
-    justify-content: flex-end;
     margin-top: 20vh;
     margin-bottom: 10vh;
 
     @media (max-width: $screen-sm) {
-      justify-content: flex-start;
       margin-top: 6vh;
       margin-bottom: 4vh;
     }
@@ -137,16 +146,22 @@ export default Vue.extend({
   },
   data() {
     return {
+      subreddit: "aww" as string,
+      subredditKeyupTimer: null as number | null,
+      sortBy: "hot" as string,
+      threadsChanged: false as boolean,
       threads: [] as Thread[],
       currThread: 0 as number,
       enableTTS: false,
       doneLoading: false,
-      intervalId: -1 as number
+      doneLoadingFirst: false,
+      intervalId: undefined as number | undefined,
+      timeoutId: null as number | null
     };
   },
   created() {
     let vm = this;
-    vm.getPostsAndComments("aww", "hot");
+    vm.getPostsAndComments(vm.subreddit, vm.sortBy);
   },
   computed: {
     // Filters threads to only contain images and videos that are reddit-hosted
@@ -164,8 +179,28 @@ export default Vue.extend({
     }
   },
   methods: {
+    subredditApply() {
+      let vm = this;
+      if (vm.subredditKeyupTimer) {
+        clearTimeout(vm.subredditKeyupTimer);
+        vm.subredditKeyupTimer = null;
+      }
+      vm.subredditKeyupTimer = setTimeout(() => {
+        vm.doneLoading = false;
+        console.log(vm.subreddit);
+        vm.getPostsAndComments(vm.subreddit, vm.sortBy);
+      }, 1000);
+    },
     async getPostsAndComments(subredditName: string, sortBy: string) {
       let vm = this;
+
+      // on subreddit change or on loading next page into the threads array
+      // we should reset our current array of threads and the counter
+      vm.threads = [];
+      vm.currThread = 0;
+      // also reset active TTS or intervals
+      vm.cancelTTS();
+      vm.resetInterval();
 
       const response = await fetch(
         "https://www.reddit.com/r/" + subredditName + "/" + sortBy + ".json"
@@ -225,11 +260,10 @@ export default Vue.extend({
         if (threadJson === threadsJson[threadsJson.length - 1]) {
           // done loading if we are on the last iteration of the loop and added the last thread
           vm.doneLoading = true;
+          vm.doneLoadingFirst = true;
 
-          // enable the setInterval
-          if (!vm.enableTTS) {
-            vm.intervalId = vm.incrementCurrThreadInterval();
-          }
+          // do the TTS/setInterval for current array of threads
+          vm.enableTTS ? vm.doTTS() : vm.doInterval();
         }
       });
     },
@@ -246,7 +280,7 @@ export default Vue.extend({
         // they toggled tts on; time to speak the text
 
         // also cancel the setInterval
-        clearInterval(vm.intervalId);
+        vm.resetInterval();
 
         // first speak the title
         let postSpeechString = vm.threadsFiltered[vm.currThread].title + ". ";
@@ -268,7 +302,8 @@ export default Vue.extend({
             }
 
             // after the delay, speak the comments
-            setTimeout(function() {
+            vm.timeoutId = setTimeout(function() {
+              vm.timeoutId = null;
               let commentsSpeechString = vm.commentsSpeechify(
                 vm.threadsFiltered[vm.currThread].comments
               );
@@ -283,7 +318,8 @@ export default Vue.extend({
                 // and we don't want to increase the currThread just yet when that toggle occurs
                 if (vm.enableTTS) {
                   // add slight delay between reading last comment and next title
-                  setTimeout(function() {
+                  vm.timeoutId = setTimeout(function() {
+                    vm.timeoutId = null;
                     vm.currThread++;
                     vm.doTTS();
                   }, 2000);
@@ -295,6 +331,16 @@ export default Vue.extend({
         });
         speechSynthesis.speak(utter);
       }
+    },
+    commentsSpeechify(comments: Array<Comment>) {
+      let vm = this;
+
+      let commentsString = "";
+      comments.forEach(function(comment) {
+        commentsString +=
+          comment.body + ". " + vm.commentsSpeechify(comment.replies);
+      });
+      return commentsString;
     },
     doInterval(): void {
       let vm = this;
@@ -323,19 +369,29 @@ export default Vue.extend({
         vm.currThread++;
 
         // clear the current interval, set a new interval with a delay customzied for the next thread
-        clearInterval(vm.intervalId);
+        vm.resetInterval();
         vm.intervalId = vm.incrementCurrThreadInterval();
       }, delay);
     },
-    commentsSpeechify(comments: Array<Comment>) {
+    resetInterval(): void {
       let vm = this;
-
-      let commentsString = "";
-      comments.forEach(function(comment) {
-        commentsString +=
-          comment.body + ". " + vm.commentsSpeechify(comment.replies);
-      });
-      return commentsString;
+      if (vm.intervalId) {
+        clearInterval(vm.intervalId);
+        vm.intervalId = undefined;
+      }
+    },
+    resetTimeout(): void {
+      let vm = this;
+      if (vm.timeoutId) {
+        clearTimeout(vm.timeoutId);
+        vm.timeoutId = null;
+      }
+    },
+    cancelTTS(): void {
+      let vm = this;
+      speechSynthesis.cancel();
+      // cancels timeouts that would otherwise fire from the onend listener for tts to create more tts
+      vm.resetTimeout();
     }
   }
 });
