@@ -38,13 +38,15 @@
             </b-col>
           </b-row>
         </b-col>
-        <b-col class="settings" offset-md="1" md="2">
-          <b-row>
-            <b-checkbox v-model="enableTTS">
-              Text-to-speech
-            </b-checkbox>
-          </b-row>
-        </b-col>
+        <transition name="slide-fade" mode="out-in">
+          <b-col class="settings" offset-md="1" md="2" v-if="doneLoading">
+            <b-row>
+              <b-checkbox v-model="enableTTS">
+                Text-to-speech
+              </b-checkbox>
+            </b-row>
+          </b-col>
+        </transition>
       </b-row>
     </b-container>
   </div>

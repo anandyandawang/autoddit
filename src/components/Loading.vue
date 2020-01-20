@@ -9,6 +9,12 @@
   display: inline-block;
   width: 80px;
   height: 80px;
+
+  /* put exactly in the center of the screen */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 .lds-dual-ring:after {
   content: " ";
