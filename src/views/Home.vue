@@ -37,10 +37,12 @@
               <b-row><loading></loading></b-row>
             </b-col>
           </b-row>
+        </b-col>
+        <b-col class="settings" offset-md="1" md="2">
           <b-row>
-            <button class="btn" @click="toggleTTS">
-              Enable text-to-speech: {{ enableTTS }}
-            </button>
+            <b-checkbox v-model="enableTTS">
+              Text-to-speech
+            </b-checkbox>
           </b-row>
         </b-col>
       </b-row>
@@ -62,7 +64,8 @@
   }
 
   .post-body,
-  .comments {
+  .comments,
+  .settings {
     @media (max-width: $screen-sm) {
       font-size: 14px;
     }
@@ -103,6 +106,19 @@
     transform: translateX(30px);
     opacity: 0;
   }
+
+  .settings {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20vh;
+    margin-bottom: 10vh;
+
+    @media (max-width: $screen-sm) {
+      justify-content: flex-start;
+      margin-top: 6vh;
+      margin-bottom: 4vh;
+    }
+  }
 }
 </style>
 
@@ -126,6 +142,10 @@ export default Vue.extend({
       intervalId: -1 as number
     };
   },
+  created() {
+    let vm = this;
+    vm.getPostsAndComments("aww", "hot");
+  },
   computed: {
     // Filters threads to only contain images and videos that are reddit-hosted
     threadsFiltered(): Array<Thread> {
@@ -135,9 +155,11 @@ export default Vue.extend({
       return threadsFiltered;
     }
   },
-  created() {
-    let vm = this;
-    vm.getPostsAndComments("aww", "hot");
+  watch: {
+    // everytime we toggle TTS, we want to enable/disable TTS and do the opposite for thte intervals
+    enableTTS: function(newEnableTTS) {
+      newEnableTTS ? this.doTTS() : this.doInterval();
+    }
   },
   methods: {
     async getPostsAndComments(subredditName: string, sortBy: string) {
@@ -213,11 +235,6 @@ export default Vue.extend({
     },
     isUrlComments(url: string) {
       return url.match(/www.reddit.com/) != null;
-    },
-    toggleTTS() {
-      // everytime we toggle TTS, we want to enable/disable TTS and do the opposite for thte intervals
-      this.enableTTS = !this.enableTTS;
-      this.enableTTS ? this.doTTS() : this.doInterval();
     },
     doTTS(): void {
       let vm = this;
