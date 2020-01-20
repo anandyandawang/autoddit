@@ -194,7 +194,8 @@ export default Vue.extend({
                 body: commentData.data.body,
                 replies: commentData.data.replies
                   ? setCommentsArray(commentData.data.replies.data.children)
-                  : []
+                  : [],
+                id: commentData.data.id
               };
               comments.push(comment);
             }
@@ -352,5 +353,6 @@ interface Thread {
 interface Comment {
   body: string;
   replies: Comment[];
+  id: string;
 }
 </script>
