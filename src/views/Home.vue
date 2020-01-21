@@ -7,30 +7,41 @@
             <transition name="slide-fade" mode="out-in">
               <!-- TODO:: make post component? instead of calling here / in Post copmonent, isUrlImg could be used in the process of grabbing reddit api info, then create an img field if it is (similar to) -->
               <b-col v-if="doneLoading" :key="currThread">
-                <b-row
-                  ><h5 class="title">
-                    {{ threadsFiltered[currThread].title }}
-                  </h5></b-row
-                >
-                <b-row
-                  class="post-body"
-                  v-if="threadsFiltered[currThread].selftext"
-                  >{{ threadsFiltered[currThread].selftext }}</b-row
-                >
-                <b-row class="post-body" v-if="threadsFiltered[currThread].img">
-                  <img class="media" :src="threadsFiltered[currThread].url" />
-                </b-row>
-                <b-row class="post-body" v-if="threadsFiltered[currThread].vid">
-                  <iframe
-                    class="media"
-                    allow="autoplay"
-                    :src="threadsFiltered[currThread].vid"
-                  />
-                </b-row>
-                <comments
-                  class="comments"
-                  :comments="threadsFiltered[currThread].comments"
-                ></comments>
+                <div v-if="!subredditNotFound">
+                  <b-row
+                    ><h5 class="title">
+                      {{ threadsFiltered[currThread].title }}
+                    </h5></b-row
+                  >
+                  <b-row
+                    class="post-body"
+                    v-if="threadsFiltered[currThread].selftext"
+                    >{{ threadsFiltered[currThread].selftext }}</b-row
+                  >
+                  <b-row
+                    class="post-body"
+                    v-if="threadsFiltered[currThread].img"
+                  >
+                    <img class="media" :src="threadsFiltered[currThread].url" />
+                  </b-row>
+                  <b-row
+                    class="post-body"
+                    v-if="threadsFiltered[currThread].vid"
+                  >
+                    <iframe
+                      class="media"
+                      allow="autoplay"
+                      :src="threadsFiltered[currThread].vid"
+                    />
+                  </b-row>
+                  <comments
+                    class="comments"
+                    :comments="threadsFiltered[currThread].comments"
+                  ></comments>
+                </div>
+                <div v-if="subredditNotFound">
+                  Subreddit Not Found
+                </div>
               </b-col>
             </transition>
             <b-col v-if="!doneLoading">
@@ -148,6 +159,7 @@ export default Vue.extend({
     return {
       subreddit: "aww" as string,
       subredditKeyupTimer: null as number | null,
+      subredditNotFound: false,
       sortBy: "hot" as string,
       threadsChanged: false as boolean,
       threads: [] as Thread[],
@@ -196,12 +208,20 @@ export default Vue.extend({
         clearTimeout(vm.subredditKeyupTimer);
         vm.subredditKeyupTimer = null;
       }
-      vm.subredditKeyupTimer = setTimeout(() => {
-        // increment threadsCount immediately after the intent to change subs is made
-        // this prevents the await calls during TTS for the previous threads from executing any further
-        // (i.e. going to the next thread and starting to read) since stateChanged would now return false
-        vm.getPostsAndComments(vm.subreddit, vm.sortBy);
-      }, 1000);
+      if (vm.subreddit.length >= 3) {
+        vm.subredditKeyupTimer = setTimeout(() => {
+          // increment threadsCount immediately after the intent to change subs is made
+          // this prevents the await calls during TTS for the previous threads from executing any further
+          // (i.e. going to the next thread and starting to read) since stateChanged would now return false
+          vm.getPostsAndComments(vm.subreddit, vm.sortBy);
+        }, 1000);
+      }
+    },
+    subredditFailedToFind() {
+      let vm = this;
+      vm.subredditNotFound = true;
+      vm.doneLoading = true;
+      vm.doneLoadingFirst = true;
     },
     async getPostsAndComments(subredditName: string, sortBy: string) {
       let vm = this;
@@ -212,20 +232,35 @@ export default Vue.extend({
       vm.doneLoading = false;
       vm.threads = [];
       vm.currThread = 0;
+      vm.subredditNotFound = false;
       // also reset active TTS or intervals
       vm.cancelTTS();
 
-      const response = await fetch(
-        "https://www.reddit.com/r/" +
-          subredditName +
-          "/" +
-          sortBy +
-          ".json?after=" +
-          vm.nextPage
-      );
+      let response;
+      try {
+        response = await fetch(
+          "https://www.reddit.com/r/" +
+            subredditName +
+            "/" +
+            sortBy +
+            ".json?after=" +
+            vm.nextPage
+        );
+      } catch (e) {
+        // trying to find the subreddit returned an error
+        vm.subredditFailedToFind();
+        return;
+      }
+
       const responseJson = await response.json();
 
-      vm.nextPage = responseJson.data.after;
+      // assert that subreddit exists
+      if (responseJson.data.children.length == 0) {
+        vm.subredditFailedToFind();
+        return;
+      }
+
+      vm.nextPage = responseJson.data.after ? responseJson.data.after : "";
 
       const threadsJson = responseJson.data.children as Array<any>;
       // asynchrously adding threads into vm.threads array.
