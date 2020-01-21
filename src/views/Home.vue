@@ -346,9 +346,15 @@ export default Vue.extend({
         await vm.wait(2000);
         if (vm.stateChanged(currEnableTTSCount, currThreadsCount)) return;
 
-        // add slight delay between reading last comment and next title
-        vm.currThread++;
-        vm.doTTS();
+        // check if we are on the last *filtered* thread
+        if (vm.currThread === vm.threadsFiltered.length - 1) {
+          // get next page of threads
+          vm.getPostsAndComments(vm.subreddit, vm.sortBy);
+        } else {
+          // add slight delay between reading last comment and next title
+          vm.currThread++;
+          vm.doTTS();
+        }
       }
     },
     commentsSpeechify(comments: Array<Comment>) {
