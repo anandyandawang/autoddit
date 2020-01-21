@@ -16,11 +16,11 @@ self.__precacheManifest = [
     "url": "/autoddit/chunk-vendors.css"
   },
   {
-    "revision": "cf42714241fa07e0525e",
+    "revision": "25b51edb77350ae9751e",
     "url": "/autoddit/app.js"
   },
   {
-    "revision": "cf42714241fa07e0525e",
+    "revision": "25b51edb77350ae9751e",
     "url": "/autoddit/app.css"
   }
 ];

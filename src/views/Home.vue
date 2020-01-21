@@ -255,7 +255,7 @@ export default Vue.extend({
       const responseJson = await response.json();
 
       // assert that subreddit exists
-      if (responseJson.data.children.length == 0) {
+      if (responseJson.data.children.length === 0) {
         vm.subredditFailedToFind();
         return;
       }
