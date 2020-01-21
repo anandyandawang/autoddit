@@ -152,6 +152,7 @@ export default Vue.extend({
       threadsChanged: false as boolean,
       threads: [] as Thread[],
       currThread: 0 as number,
+      nextPage: "" as string,
       enableTTS: false,
       doneLoading: false,
       doneLoadingFirst: false,
@@ -199,8 +200,6 @@ export default Vue.extend({
         // increment threadsCount immediately after the intent to change subs is made
         // this prevents the await calls during TTS for the previous threads from executing any further
         // (i.e. going to the next thread and starting to read) since stateChanged would now return false
-        vm.threadsCount++;
-        vm.doneLoading = false;
         vm.getPostsAndComments(vm.subreddit, vm.sortBy);
       }, 1000);
     },
@@ -209,15 +208,24 @@ export default Vue.extend({
 
       // on subreddit change or on loading next page into the threads array
       // we should reset our current array of threads and the counter
+      vm.threadsCount++;
+      vm.doneLoading = false;
       vm.threads = [];
       vm.currThread = 0;
       // also reset active TTS or intervals
       vm.cancelTTS();
 
       const response = await fetch(
-        "https://www.reddit.com/r/" + subredditName + "/" + sortBy + ".json"
+        "https://www.reddit.com/r/" +
+          subredditName +
+          "/" +
+          sortBy +
+          ".json?after=" +
+          vm.nextPage
       );
       const responseJson = await response.json();
+
+      vm.nextPage = responseJson.data.after;
 
       const threadsJson = responseJson.data.children as Array<any>;
       // asynchrously adding threads into vm.threads array.
@@ -379,14 +387,21 @@ export default Vue.extend({
 
       await vm.wait(delay);
 
+      // after the wait, if we are still non TTS and threads havent changed
       if (
         !vm.enableTTS &&
         !vm.stateChanged(currEnableTTSCount, currThreadsCount)
       ) {
-        // after the wait, if we are still non TTS and threads havent changed, then increment and
-        vm.currThread++;
-        // set a new interval with a delay customzied for the next thread
-        vm.incrementCurrThreadInterval();
+        // check if we are on the last *filtered* thread
+        if (vm.currThread === vm.threadsFiltered.length - 1) {
+          // get next page of threads
+          vm.getPostsAndComments(vm.subreddit, vm.sortBy);
+        } else {
+          // go to next thread
+          vm.currThread++;
+          // set a new interval with a delay customzied for the next thread
+          vm.incrementCurrThreadInterval();
+        }
       }
     },
     cancelTTS(): void {
