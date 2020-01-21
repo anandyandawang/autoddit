@@ -154,7 +154,14 @@ export default Vue.extend({
       currThread: 0 as number,
       enableTTS: false,
       doneLoading: false,
-      doneLoadingFirst: false
+      doneLoadingFirst: false,
+      // the Count variables are to keep track of the state of the program;
+      // for example, if they decide to make a subreddit change, then
+      // threadsCount would increase and that would make sure that any await calls made at a count of 0
+      // would have all the suceeding lines not call anymore
+      // (because the suceeding lines are meant to be used to, e.g., speak the original thread's comments, and we wouldn't want to let those calls speak the next thread's comments!)
+      threadsCount: 0 as number,
+      enableTTSCount: 0 as number
     };
   },
   created() {
@@ -173,7 +180,12 @@ export default Vue.extend({
   watch: {
     // everytime we toggle TTS, we want to enable/disable TTS and do the opposite for thte intervals
     enableTTS: function(newEnableTTS) {
+      // everytime a change occurs to enableTTS, increase the counter to udpate the state
+      this.enableTTSCount++;
       newEnableTTS ? this.doTTS() : this.doInterval();
+    },
+    threads: function() {
+      this.threadsCount++;
     }
   },
   methods: {
@@ -185,7 +197,6 @@ export default Vue.extend({
       }
       vm.subredditKeyupTimer = setTimeout(() => {
         vm.doneLoading = false;
-        console.log(vm.subreddit);
         vm.getPostsAndComments(vm.subreddit, vm.sortBy);
       }, 1000);
     },
@@ -284,8 +295,8 @@ export default Vue.extend({
     },
     async doTTS() {
       let vm = this;
-      let currEnableTTS = vm.enableTTS;
-      let currThreads = vm.threads;
+      let currEnableTTSCount = vm.enableTTSCount;
+      let currThreadsCount = vm.threadsCount;
 
       if (vm.enableTTS) {
         // they toggled tts on; time to speak the text
@@ -299,7 +310,7 @@ export default Vue.extend({
         await vm.speak(postSpeechString);
 
         // after the delay check if we are still doing TTS and we haven't changed the set of threads via subreddit change or next page
-        if (!vm.stateChanged(currEnableTTS, currThreads)) {
+        if (!vm.stateChanged(currEnableTTSCount, currThreadsCount)) {
           // then add a delay if there is an image or video
           let delay = 0;
           if (vm.threadsFiltered[vm.currThread].vid) {
@@ -315,9 +326,8 @@ export default Vue.extend({
           );
           await vm.speak(commentsSpeechString);
           await vm.wait(2000);
-          // solutions: check if after the awaits, the new vm.threads matches the ones we just spoke. dont do anything if it doesnt match.
           // after the delay check if we are still doing TTS
-          if (!vm.stateChanged(currEnableTTS, currThreads)) {
+          if (!vm.stateChanged(currEnableTTSCount, currThreadsCount)) {
             // add slight delay between reading last comment and next title
             vm.currThread++;
             vm.doTTS();
@@ -348,8 +358,8 @@ export default Vue.extend({
     },
     async incrementCurrThreadInterval() {
       let vm = this;
-      let currEnableTTS = vm.enableTTS;
-      let currThreads = vm.threads;
+      let currEnableTTSCount = vm.enableTTSCount;
+      let currThreadsCount = vm.threadsCount;
 
       // giving extra delay time if there is an image or a video
       let delay = 5000;
@@ -361,7 +371,10 @@ export default Vue.extend({
 
       await vm.wait(delay);
 
-      if (!vm.enableTTS && !vm.stateChanged(currEnableTTS, currThreads)) {
+      if (
+        !vm.enableTTS &&
+        !vm.stateChanged(currEnableTTSCount, currThreadsCount)
+      ) {
         // after the wait, if we are still non TTS and threads havent changed, then increment and
         vm.currThread++;
         // set a new interval with a delay customzied for the next thread
@@ -372,11 +385,12 @@ export default Vue.extend({
       speechSynthesis.cancel();
     },
     stateChanged(
-      stateEnableTTS: boolean,
-      stateThreads: Array<Thread>
+      enableTTSCountState: number,
+      threadsCountState: number
     ): boolean {
       return !(
-        stateEnableTTS === this.enableTTS && stateThreads === this.threads
+        enableTTSCountState === this.enableTTSCount &&
+        threadsCountState === this.threadsCount
       );
     }
   }
