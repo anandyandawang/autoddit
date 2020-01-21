@@ -182,10 +182,10 @@ export default Vue.extend({
     enableTTS: function(newEnableTTS) {
       // everytime a change occurs to enableTTS, increase the counter to udpate the state
       this.enableTTSCount++;
-      newEnableTTS ? this.doTTS() : this.doInterval();
-    },
-    threads: function() {
-      this.threadsCount++;
+      // make sure that when they toggle, we are done loading. prevents doing tts on no threads
+      if (this.doneLoading) {
+        newEnableTTS ? this.doTTS() : this.doInterval();
+      }
     }
   },
   methods: {
@@ -196,6 +196,10 @@ export default Vue.extend({
         vm.subredditKeyupTimer = null;
       }
       vm.subredditKeyupTimer = setTimeout(() => {
+        // increment threadsCount immediately after the intent to change subs is made
+        // this prevents the await calls during TTS for the previous threads from executing any further
+        // (i.e. going to the next thread and starting to read) since stateChanged would now return false
+        vm.threadsCount++;
         vm.doneLoading = false;
         vm.getPostsAndComments(vm.subreddit, vm.sortBy);
       }, 1000);
@@ -216,6 +220,9 @@ export default Vue.extend({
       const responseJson = await response.json();
 
       const threadsJson = responseJson.data.children as Array<any>;
+      // asynchrously adding threads into vm.threads array.
+      // use a counter to check for when ALL threads are added in
+      // (because we cant rely on the last thread to be added last if they are all being added at the same time async!)
       threadsJson.forEach(async function(threadJson) {
         let link =
           "https://www.reddit.com" +
@@ -265,7 +272,7 @@ export default Vue.extend({
           comments: comments
         };
         vm.threads.push(thread);
-        if (threadJson === threadsJson[threadsJson.length - 1]) {
+        if (vm.threads.length === threadsJson.length) {
           // done loading if we are on the last iteration of the loop and added the last thread
           vm.doneLoading = true;
           vm.doneLoadingFirst = true;
@@ -306,33 +313,34 @@ export default Vue.extend({
         if (vm.threadsFiltered[vm.currThread].selftext) {
           postSpeechString += vm.threadsFiltered[vm.currThread].selftext + ". ";
         }
-
         await vm.speak(postSpeechString);
-
         // after the delay check if we are still doing TTS and we haven't changed the set of threads via subreddit change or next page
-        if (!vm.stateChanged(currEnableTTSCount, currThreadsCount)) {
-          // then add a delay if there is an image or video
-          let delay = 0;
-          if (vm.threadsFiltered[vm.currThread].vid) {
-            delay = vm.threadsFiltered[vm.currThread].duration;
-          } else if (vm.threadsFiltered[vm.currThread].img) {
-            delay = 3000;
-          }
-          // after the delay, speak the comments
-          await vm.wait(delay);
+        // if the state has changed we no longer want to do anything more here, so simply return
+        if (vm.stateChanged(currEnableTTSCount, currThreadsCount)) return;
 
-          let commentsSpeechString = vm.commentsSpeechify(
-            vm.threadsFiltered[vm.currThread].comments
-          );
-          await vm.speak(commentsSpeechString);
-          await vm.wait(2000);
-          // after the delay check if we are still doing TTS
-          if (!vm.stateChanged(currEnableTTSCount, currThreadsCount)) {
-            // add slight delay between reading last comment and next title
-            vm.currThread++;
-            vm.doTTS();
-          }
+        // then add a delay if there is an image or video
+        let delay = 0;
+        if (vm.threadsFiltered[vm.currThread].vid) {
+          delay = vm.threadsFiltered[vm.currThread].duration;
+        } else if (vm.threadsFiltered[vm.currThread].img) {
+          delay = 3000;
         }
+        // after the delay, speak the comments
+        await vm.wait(delay);
+        if (vm.stateChanged(currEnableTTSCount, currThreadsCount)) return;
+
+        let commentsSpeechString = vm.commentsSpeechify(
+          vm.threadsFiltered[vm.currThread].comments
+        );
+        await vm.speak(commentsSpeechString);
+        if (vm.stateChanged(currEnableTTSCount, currThreadsCount)) return;
+
+        await vm.wait(2000);
+        if (vm.stateChanged(currEnableTTSCount, currThreadsCount)) return;
+
+        // add slight delay between reading last comment and next title
+        vm.currThread++;
+        vm.doTTS();
       }
     },
     commentsSpeechify(comments: Array<Comment>) {
