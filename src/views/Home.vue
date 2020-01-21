@@ -154,9 +154,7 @@ export default Vue.extend({
       currThread: 0 as number,
       enableTTS: false,
       doneLoading: false,
-      doneLoadingFirst: false,
-      intervalId: undefined as number | undefined,
-      timeoutId: null as number | null
+      doneLoadingFirst: false
     };
   },
   created() {
@@ -200,7 +198,6 @@ export default Vue.extend({
       vm.currThread = 0;
       // also reset active TTS or intervals
       vm.cancelTTS();
-      vm.resetInterval();
 
       const response = await fetch(
         "https://www.reddit.com/r/" + subredditName + "/" + sortBy + ".json"
@@ -291,9 +288,6 @@ export default Vue.extend({
       if (vm.enableTTS) {
         // they toggled tts on; time to speak the text
 
-        // also cancel the setInterval
-        vm.resetInterval();
-
         // first speak the title
         let postSpeechString = vm.threadsFiltered[vm.currThread].title + ". ";
         if (vm.threadsFiltered[vm.currThread].selftext) {
@@ -356,10 +350,10 @@ export default Vue.extend({
         speechSynthesis.cancel();
 
         // also re-enable the setInterval
-        vm.intervalId = vm.incrementCurrThreadInterval();
+        vm.incrementCurrThreadInterval();
       }
     },
-    incrementCurrThreadInterval() {
+    async incrementCurrThreadInterval() {
       let vm = this;
 
       // giving extra delay time if there is an image or a video
@@ -370,19 +364,13 @@ export default Vue.extend({
         delay += 3000;
       }
 
-      return setInterval(function() {
-        vm.currThread++;
+      await vm.wait(delay);
 
-        // clear the current interval, set a new interval with a delay customzied for the next thread
-        vm.resetInterval();
-        vm.intervalId = vm.incrementCurrThreadInterval();
-      }, delay);
-    },
-    resetInterval(): void {
-      let vm = this;
-      if (vm.intervalId) {
-        clearInterval(vm.intervalId);
-        vm.intervalId = undefined;
+      if (!vm.enableTTS) {
+        // after the wait, if we are still non TTS, then increment and
+        vm.currThread++;
+        // set a new interval with a delay customzied for the next thread
+        vm.incrementCurrThreadInterval();
       }
     },
     cancelTTS(): void {
