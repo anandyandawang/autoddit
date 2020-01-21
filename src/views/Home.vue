@@ -267,13 +267,25 @@ export default Vue.extend({
         }
       });
     },
+    speak(text: string) {
+      return new Promise(resolve => {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.onend = resolve;
+        speechSynthesis.speak(utter);
+      });
+    },
+    wait(ms: number) {
+      return new Promise(resolve => {
+        setTimeout(resolve, ms);
+      });
+    },
     isUrlImg(url: string) {
       return url.match(/\.(jpeg|jpg|gif|png)$/) != null;
     },
     isUrlComments(url: string) {
       return url.match(/www.reddit.com/) != null;
     },
-    doTTS(): void {
+    async doTTS() {
       let vm = this;
 
       if (vm.enableTTS) {
@@ -287,49 +299,42 @@ export default Vue.extend({
         if (vm.threadsFiltered[vm.currThread].selftext) {
           postSpeechString += vm.threadsFiltered[vm.currThread].selftext + ". ";
         }
-        let utter = new SpeechSynthesisUtterance(postSpeechString);
-        utter.addEventListener("end", function(event) {
+
+        await vm.speak(postSpeechString);
+
+        // extra check needed here because it is possible to fire this listener when enableTTS is false
+        // happens when speechSynthesis.cancel() is called
+        // which happens when we toggle off TTS to use interval instead,
+        if (vm.enableTTS) {
+          // then add a delay if there is an image or video
+          let delay = 0;
+          if (vm.threadsFiltered[vm.currThread].vid) {
+            delay = vm.threadsFiltered[vm.currThread].duration;
+          } else if (vm.threadsFiltered[vm.currThread].img) {
+            delay = 3000;
+          }
+
+          // after the delay, speak the comments
+          await vm.wait(delay);
+          let commentsSpeechString = vm.commentsSpeechify(
+            vm.threadsFiltered[vm.currThread].comments
+          );
+
+          // if TTS is enabled then on every completion of reading a thread,
+          // increment the currThread counter, and start reading the next thread
+          await vm.speak(commentsSpeechString);
           // extra check needed here because it is possible to fire this listener when enableTTS is false
           // happens when speechSynthesis.cancel() is called
           // which happens when we toggle off TTS to use interval instead,
+          // and we don't want to increase the currThread just yet when that toggle occurs
+          await vm.wait(2000);
+
           if (vm.enableTTS) {
-            // then add a delay if there is an image or video
-            let delay = 0;
-            if (vm.threadsFiltered[vm.currThread].vid) {
-              delay = vm.threadsFiltered[vm.currThread].duration;
-            } else if (vm.threadsFiltered[vm.currThread].img) {
-              delay = 3000;
-            }
-
-            // after the delay, speak the comments
-            vm.timeoutId = setTimeout(function() {
-              vm.timeoutId = null;
-              let commentsSpeechString = vm.commentsSpeechify(
-                vm.threadsFiltered[vm.currThread].comments
-              );
-
-              // if TTS is enabled then on every completion of reading a thread,
-              // increment the currThread counter, and start reading the next thread
-              let utter = new SpeechSynthesisUtterance(commentsSpeechString);
-              utter.addEventListener("end", function(event) {
-                // extra check needed here because it is possible to fire this listener when enableTTS is false
-                // happens when speechSynthesis.cancel() is called
-                // which happens when we toggle off TTS to use interval instead,
-                // and we don't want to increase the currThread just yet when that toggle occurs
-                if (vm.enableTTS) {
-                  // add slight delay between reading last comment and next title
-                  vm.timeoutId = setTimeout(function() {
-                    vm.timeoutId = null;
-                    vm.currThread++;
-                    vm.doTTS();
-                  }, 2000);
-                }
-              });
-              speechSynthesis.speak(utter);
-            }, delay);
+            // add slight delay between reading last comment and next title
+            vm.currThread++;
+            vm.doTTS();
           }
-        });
-        speechSynthesis.speak(utter);
+        }
       }
     },
     commentsSpeechify(comments: Array<Comment>) {
@@ -380,18 +385,8 @@ export default Vue.extend({
         vm.intervalId = undefined;
       }
     },
-    resetTimeout(): void {
-      let vm = this;
-      if (vm.timeoutId) {
-        clearTimeout(vm.timeoutId);
-        vm.timeoutId = null;
-      }
-    },
     cancelTTS(): void {
-      let vm = this;
       speechSynthesis.cancel();
-      // cancels timeouts that would otherwise fire from the onend listener for tts to create more tts
-      vm.resetTimeout();
     }
   }
 });
