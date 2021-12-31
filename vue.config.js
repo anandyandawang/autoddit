@@ -18,5 +18,5 @@ module.exports = {
       chunkFilename: "[name].js"
     }
   },
-  publicPath: "/autoddit/"
+  // publicPath: "/autoddit/"
 };
