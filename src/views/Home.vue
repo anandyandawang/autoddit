@@ -213,6 +213,7 @@ export default Vue.extend({
           // increment threadsCount immediately after the intent to change subs is made
           // this prevents the await calls during TTS for the previous threads from executing any further
           // (i.e. going to the next thread and starting to read) since stateChanged would now return false
+          vm.nextPage = "";
           vm.getPostsAndComments(vm.subreddit, vm.sortBy);
         }, 1000);
       }
